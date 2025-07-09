@@ -1,17 +1,18 @@
+# 핵심 딥러닝 라이브러리
 torch>=2.6.0
 transformers==4.35.0
-datasets==2.14.0
-pandas==2.1.3
-numpy==1.24.3
 peft==0.6.0
 accelerate==0.24.1
 bitsandbytes==0.41.1
-scikit-learn==1.3.2
-matplotlib==3.8.2
-seaborn==0.13.0
-tqdm==4.66.1
-jupyter==1.0.0
-ipywidgets==8.1.1
+
+# 데이터 처리 라이브러리
+datasets==2.14.0
+pandas==2.1.3
+numpy==1.24.3
+
+# 평가 및 메트릭
 evaluate==0.4.0
-flask==3.0.0
-requests==2.31.0 
+
+# Windows 노트북 최적화 (권장)
+psutil
+tqdm 
