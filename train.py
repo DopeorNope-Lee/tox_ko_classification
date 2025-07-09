@@ -4,13 +4,18 @@
 
 이 스크립트는 한국어 댓글을 분석하여 악성 댓글과 일반 댓글을 분류하는 모델을 학습합니다.
 KoBERT 기반 모델에 LoRA를 적용하여 효율적인 fine-tuning을 수행합니다.
+Windows 11 환경의 GPU 내장 노트북에 최적화되어 있습니다.
 
-사용법:
-    python train.py --epochs 20 --batch_size 128 --learning_rate 5e-5
+학습을 시작하려면 이 파일 하단의 설정값들을 수정한 후 스크립트를 실행하세요.
+
+사용 전에 setup.py를 먼저 실행하여 환경을 설정하세요.
+
+주의사항:
+    - 노트북 GPU 메모리 제약을 고려하여 기본 배치 크기가 작게 설정되어 있습니다.
+    - GPU 메모리가 부족하면 BATCH_SIZE를 더 줄이세요.
+    - 학습 중에는 다른 프로그램을 종료하여 GPU 메모리를 확보하세요.
 """
 
-import os
-import argparse
 import numpy as np
 import pandas as pd
 import torch
@@ -31,23 +36,6 @@ from peft import LoraConfig, get_peft_model
 import evaluate
 
 
-def setup_environment():
-    """환경 설정 및 GPU 확인"""
-    print("=== 환경 설정 ===")
-    
-    # GPU 설정
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    
-    # CUDA 사용 가능 여부 확인
-    if torch.cuda.is_available():
-        print(f"GPU 사용 가능: {torch.cuda.get_device_name(0)}")
-        print(f"GPU 메모리: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB")
-    else:
-        print("GPU를 찾을 수 없습니다. CPU를 사용합니다.")
-    
-    print("환경 설정 완료\n")
-
-
 def load_and_preprocess_data(data_path: str = "./korean-malicious-comments-dataset/Dataset.csv"):
     """
     데이터 로딩 및 전처리
@@ -60,7 +48,7 @@ def load_and_preprocess_data(data_path: str = "./korean-malicious-comments-datas
     """
     print("=== 데이터 로딩 및 전처리 ===")
     
-    # CSV 파일 로드
+    # CSV 파일 로드 (Windows 경로 지원)
     try:
         df = pd.read_csv(data_path, sep='\t')
     except:
@@ -79,7 +67,7 @@ def load_and_preprocess_data(data_path: str = "./korean-malicious-comments-datas
     print("라벨 분포:")
     print(df['label'].value_counts())
     
-    # 데이터 분할 (train: 9500, validation: 500)
+    # 데이터 분할 (train: 9500, validation: 500) - 필요시 수정
     valid_df = df.sample(n=500, random_state=42)
     train_df = df.drop(valid_df.index)
     
@@ -198,31 +186,29 @@ def setup_lora(model, r: int = 16, lora_alpha: int = 16, lora_dropout: float = 0
     
     # LoRA 설정
     lora_cfg = LoraConfig(
-        r=r,                    # LoRA의 rank
-        lora_alpha=lora_alpha,  # LoRA의 alpha 값
-        lora_dropout=lora_dropout,  # Dropout 비율
-        bias="none",            # Bias 처리 방식
-        task_type="SEQ_CLS",    # 시퀀스 분류 태스크
-        target_modules=targets  # 적용할 모듈들
+        r=r,
+        lora_alpha=lora_alpha,
+        target_modules=targets,
+        lora_dropout=lora_dropout,
+        bias="none",
+        task_type="SEQUENCE_CLASSIFICATION"
     )
     
-    # LoRA 모델 생성
+    # LoRA 적용
     model = get_peft_model(model, lora_cfg)
     
-    print("LoRA 설정 완료")
+    # 학습 가능한 파라미터만 출력
     model.print_trainable_parameters()
     
+    print("LoRA 설정 완료\n")
     return model
 
 
 class SmartCollator(DataCollatorWithPadding):
-    """BERT 모델을 위한 스마트 데이터 콜레이터"""
+    """스마트 데이터 콜레이터"""
     
     def __call__(self, features):
         batch = super().__call__(features)
-        # BERT류 모델의 경우 token_type_ids를 0으로 설정
-        if "token_type_ids" in batch:
-            batch["token_type_ids"].zero_()
         return batch
 
 
@@ -252,37 +238,55 @@ def compute_metrics(eval_pred):
     return {"accuracy": acc, "f1": f1}
 
 
-def train_model(model, tokenizer, data, args):
+def train_model(model, tokenizer, data, max_len: int = 512, batch_size: int = 32, 
+                eval_batch_size: int = 8, epochs: int = 20, learning_rate: float = 5e-5,
+                output_dir: str = "model-checkpoints/kobert"):
     """
-    모델 학습 수행
+    모델 학습 수행 (노트북 GPU 최적화)
     
     Args:
         model: 학습할 모델
         tokenizer: 토크나이저
         data: 데이터셋
-        args: 학습 인자
+        max_len (int): 최대 시퀀스 길이
+        batch_size (int): 훈련 배치 크기 (노트북 GPU 메모리 제약 고려)
+        eval_batch_size (int): 평가 배치 크기
+        epochs (int): 훈련 에포크 수
+        learning_rate (float): 학습률
+        output_dir (str): 모델 저장 경로
         
     Returns:
         Trainer: 학습된 트레이너 객체
     """
-    print("=== 모델 학습 시작 ===")
+    print("=== 모델 학습 시작 (노트북 GPU 최적화) ===")
     
     # 데이터셋 토크나이징
-    ds = get_dataset(data, tokenizer, args.max_len)
+    ds = get_dataset(data, tokenizer, max_len)
     print("데이터셋 토크나이징 완료")
     
     # 토크나이저 임베딩 크기 조정
     model.resize_token_embeddings(len(tokenizer))
     model.config.pad_token_id = tokenizer.pad_token_id
     
-    # 학습 인자 설정
+    # GPU 메모리 확인
+    if torch.cuda.is_available():
+        gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
+        print(f"GPU 메모리: {gpu_memory:.1f}GB")
+        
+        # GPU 메모리에 따른 배치 크기 조정 제안
+        if gpu_memory < 4.0 and batch_size > 16:
+            print(f"⚠️  GPU 메모리가 적습니다. 배치 크기를 16 이하로 줄이는 것을 권장합니다.")
+        elif gpu_memory < 8.0 and batch_size > 32:
+            print(f"⚠️  GPU 메모리가 제한적입니다. 배치 크기를 32 이하로 줄이는 것을 권장합니다.")
+    
+    # 학습 인자 설정 (노트북 최적화)
     training_args = TrainingArguments(
-        output_dir=args.output_dir,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.eval_batch_size,
-        num_train_epochs=args.epochs,
-        learning_rate=args.learning_rate,
-        fp16=True,
+        output_dir=output_dir,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=eval_batch_size,
+        num_train_epochs=epochs,
+        learning_rate=learning_rate,
+        fp16=True,  # 16비트 정밀도로 메모리 절약
         eval_strategy="steps",
         save_strategy="steps",
         logging_steps=1,
@@ -292,6 +296,10 @@ def train_model(model, tokenizer, data, args):
         eval_steps=50,
         warmup_steps=100,
         weight_decay=0.01,
+        # 노트북 최적화 설정
+        dataloader_pin_memory=False,  # Windows에서 메모리 절약
+        remove_unused_columns=False,  # Windows 호환성
+        report_to=None,  # 로깅 비활성화로 메모리 절약
     )
     
     # 데이터 콜레이터 설정
@@ -365,66 +373,86 @@ def test_predictions(model, tokenizer, test_texts: list):
         print(f"예측: {result}\n")
 
 
-def main():
-    """메인 함수"""
-    parser = argparse.ArgumentParser(description="한국어 악성 댓글 분류 모델 학습")
-    
-    # 학습 파라미터
-    parser.add_argument("--epochs", type=int, default=20, help="훈련 에포크 수")
-    parser.add_argument("--batch_size", type=int, default=128, help="훈련 배치 크기")
-    parser.add_argument("--eval_batch_size", type=int, default=16, help="평가 배치 크기")
-    parser.add_argument("--learning_rate", type=float, default=5e-5, help="학습률")
-    parser.add_argument("--max_len", type=int, default=512, help="최대 시퀀스 길이")
-    
-    # 모델 설정
-    parser.add_argument("--model_path", type=str, default="skt/kobert-base-v1", help="모델 경로")
-    parser.add_argument("--data_path", type=str, default="./korean-malicious-comments-dataset/Dataset.csv", help="데이터셋 경로")
-    parser.add_argument("--output_dir", type=str, default="model-checkpoints/kobert", help="모델 저장 경로")
-    parser.add_argument("--save_path", type=str, default="final-model", help="최종 모델 저장 경로")
-    
-    # LoRA 설정
-    parser.add_argument("--lora_r", type=int, default=16, help="LoRA rank")
-    parser.add_argument("--lora_alpha", type=int, default=16, help="LoRA alpha")
-    parser.add_argument("--lora_dropout", type=float, default=0.1, help="LoRA dropout")
-    
-    args = parser.parse_args()
-    
-    # 환경 설정
-    setup_environment()
+# ============================================================================
+# 학습 설정값 - 여기서 직접 수정하세요 (Windows 노트북 최적화)
+# ============================================================================
+
+# 데이터 설정
+DATA_PATH = "./korean-malicious-comments-dataset/Dataset.csv"
+
+# 모델 설정
+MODEL_PATH = "skt/kobert-base-v1"
+MAX_LEN = 512
+
+# 학습 설정 (노트북 GPU 메모리 제약 고려)
+BATCH_SIZE = 32      # 노트북 GPU 메모리 제약으로 작게 설정 (기존: 128)
+EVAL_BATCH_SIZE = 8  # 평가 배치 크기도 작게 설정 (기존: 16)
+EPOCHS = 20
+LEARNING_RATE = 5e-5
+
+# LoRA 설정
+LORA_R = 16
+LORA_ALPHA = 16
+LORA_DROPOUT = 0.1
+
+# 저장 경로 설정 (Windows 경로)
+OUTPUT_DIR = "model-checkpoints\\kobert"
+SAVE_PATH = "final-model"
+
+# 테스트 텍스트
+TEST_TEXTS = [
+    "안녕하세요! 좋은 하루 되세요.",
+    "이런 말은 하면 안 됩니다.",
+    "정말 멋진 프로젝트네요!"
+]
+
+# ============================================================================
+# 메인 실행 코드
+# ============================================================================
+
+if __name__ == "__main__":
+    print("🚀 한국어 악성 댓글 분류 모델 학습 (Windows 11 + GPU 노트북)")
+    print("=" * 60)
+    print()
     
     # 데이터 로딩 및 전처리
-    data = load_and_preprocess_data(args.data_path)
+    data = load_and_preprocess_data(DATA_PATH)
     
     # 텍스트에 프롬프트 적용
     data = data.map(lambda x: {"text": build_prompt(x["text"])})
     
     # 모델 및 토크나이저 설정
-    model, tokenizer = setup_model_and_tokenizer(args.model_path)
+    model, tokenizer = setup_model_and_tokenizer(MODEL_PATH)
     
     # LoRA 설정
-    model = setup_lora(model, args.lora_r, args.lora_alpha, args.lora_dropout)
+    model = setup_lora(model, LORA_R, LORA_ALPHA, LORA_DROPOUT)
     
     # 모델 학습
-    trainer = train_model(model, tokenizer, data, args)
+    trainer = train_model(
+        model, tokenizer, data, 
+        max_len=MAX_LEN,
+        batch_size=BATCH_SIZE,
+        eval_batch_size=EVAL_BATCH_SIZE,
+        epochs=EPOCHS,
+        learning_rate=LEARNING_RATE,
+        output_dir=OUTPUT_DIR
+    )
     
     # 모델 평가
     results = evaluate_model(trainer)
     
     # 모델 저장
-    save_model(trainer, tokenizer, args.save_path)
+    save_model(trainer, tokenizer, SAVE_PATH)
     
     # 예측 테스트
-    test_texts = [
-        "안녕하세요! 좋은 하루 되세요.",
-        "이런 말은 하면 안 됩니다.",
-        "정말 멋진 프로젝트네요!"
-    ]
-    test_predictions(model, tokenizer, test_texts)
+    test_predictions(model, tokenizer, TEST_TEXTS)
     
+    print("=" * 60)
     print("=== 학습 완료 ===")
     print(f"최종 정확도: {results['eval_accuracy']:.4f}")
     print(f"최종 F1 점수: {results['eval_f1']:.4f}")
-
-
-if __name__ == "__main__":
-    main() 
+    print()
+    print("💡 노트북 최적화 팁:")
+    print("   - GPU 메모리가 부족하면 BATCH_SIZE를 더 줄이세요 (16 또는 8)")
+    print("   - 학습 중에는 다른 프로그램을 종료하여 GPU 메모리를 확보하세요")
+    print("   - 양자화를 위해 quantization.py를 실행하세요") 
