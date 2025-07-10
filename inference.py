@@ -1,293 +1,175 @@
-#!/usr/bin/env python3
 """
 한국어 악성 댓글 분류 모델 추론 스크립트
 
 이 스크립트는 학습된 KoBERT 모델을 사용하여 한국어 텍스트의 악성 여부를 분류합니다.
-양자화된 모델과 일반 모델 모두 지원합니다.
+PEFT(LoRA)로 튜닝된 모델의 추론을 지원합니다.
 
 사용법:
     python inference.py --text "분석할 텍스트"
     python inference.py --file input.txt
     python inference.py --interactive
 """
-
+import os
 import argparse
 import torch
-import json
-from pathlib import Path
-from typing import Dict, List, Union
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
+from peft import PeftModel
+
+# -- 환경 설정 --
+# 특정 GPU만 사용하도록 설정 (예: 0번 GPU)
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+# -- 모델 설정 --
+CONFIG = {
+    "base_model": "skt/kobert-base-v1",
+    "lora_dir": "checkpoints/kobert-lora/checkpoint-700",
+}
+
+# -- 레이블 정의 --
+# 학습 시 설정한 레이블에 맞게 수정해야 할 수 있습니다.
+# 예: 0: 정상, 1: 악성
+LABEL_MAP = {
+    0: "정상",
+    1: "악성"
+}
 
 
-class ToxicCommentClassifier:
+def load_model(model_dir: str = CONFIG["lora_dir"]):
     """
-    한국어 악성 댓글 분류기
-    
-    학습된 KoBERT 모델을 사용하여 텍스트의 악성 여부를 분류합니다.
+    사전 학습된 KoBERT 모델과 LoRA 어댑터를 로드하고 병합합니다.
     """
+    print("모델과 토크나이저를 로드하는 중... 🐢")
+    cfg = AutoConfig.from_pretrained(
+        CONFIG["base_model"],
+        num_labels=len(LABEL_MAP),
+        problem_type="single_label_classification"
+    )
+    tokenizer = AutoTokenizer.from_pretrained(CONFIG["base_model"])
     
-    def __init__(self, model_path: str = "bnb-4bit", device: str = "auto"):
-        """
-        분류기 초기화
-        
-        Args:
-            model_path (str): 모델 경로 (기본값: "bnb-4bit")
-            device (str): 사용할 디바이스 (기본값: "auto")
-        """
-        self.model_path = model_path
-        self.device = device
-        
-        # 모델과 토크나이저 로드
-        print(f"모델 로딩 중: {model_path}")
-        self.model = AutoModelForSequenceClassification.from_pretrained(
-            model_path, 
-            device_map=device
-        )
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        
-        # 라벨 매핑 설정
-        self.id2label = {0: "toxic", 1: "none"}
-        self.label2id = {"toxic": 0, "none": 1}
-        
-        print("모델 로딩 완료!")
+    # 기본 모델 로드
+    base_model = AutoModelForSequenceClassification.from_pretrained(
+        CONFIG["base_model"],
+        config=cfg,
+        device_map="auto"
+    )
     
-    def build_prompt(self, text: str) -> str:
-        """
-        입력 텍스트를 프롬프트 형식으로 변환
-        
-        Args:
-            text (str): 원본 텍스트
-            
-        Returns:
-            str: 프롬프트 형식의 텍스트
-        """
-        return (
-            "다음 문장이 긍정인지 부정인지 판단하세요.\n\n"
-            "### 문장:\n"
-            f"{text}"
-        )
-    
-    def predict(self, text: str, return_confidence: bool = True) -> Dict[str, Union[str, float]]:
-        """
-        단일 텍스트에 대한 예측 수행
-        
-        Args:
-            text (str): 예측할 텍스트
-            return_confidence (bool): 신뢰도 반환 여부
-            
-        Returns:
-            Dict: 예측 결과 (prediction, confidence)
-        """
-        # 프롬프트 적용
-        prompt_text = self.build_prompt(text)
-        
-        # 토크나이징
-        inputs = self.tokenizer(
-            prompt_text, 
-            return_tensors="pt", 
-            truncation=True, 
-            max_length=512
-        )
-        
-        # GPU로 이동 (필요시)
-        if self.device != "auto":
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-        
-        # 예측
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            predictions = torch.softmax(outputs.logits, dim=-1)
-            predicted_class = torch.argmax(predictions, dim=-1).item()
-            confidence = predictions[0][predicted_class].item()
-        
-        result = {
-            "prediction": self.id2label[predicted_class],
-            "confidence": confidence
-        }
-        
-        return result
-    
-    def predict_batch(self, texts: List[str], return_confidence: bool = True) -> List[Dict[str, Union[str, float]]]:
-        """
-        배치 텍스트에 대한 예측 수행
-        
-        Args:
-            texts (List[str]): 예측할 텍스트 리스트
-            return_confidence (bool): 신뢰도 반환 여부
-            
-        Returns:
-            List[Dict]: 예측 결과 리스트
-        """
-        results = []
-        
-        for text in texts:
-            result = self.predict(text, return_confidence)
-            results.append(result)
-        
-        return results
+    # LoRA 가중치를 불러와 기본 모델과 병합
+    model = PeftModel.from_pretrained(base_model, model_dir).merge_and_unload()
+    model.eval()
+    print("모델 로드 완료! ✨")
+    return tokenizer, model
 
 
-def load_texts_from_file(file_path: str) -> List[str]:
+def predict(texts, tokenizer, model):
     """
-    파일에서 텍스트 리스트 로드
+    입력된 텍스트 리스트에 대해 악성 여부를 예측합니다.
+    """
+    if isinstance(texts, str):
+        texts = [texts]
+
+    # 토크나이징
+    encodings = tokenizer(
+        texts,
+        padding=True,
+        truncation=True,
+        return_tensors="pt",
+        max_length=512
+    )
+
+    # 모델이 기대하는 입력 형식으로 변환
+    batch = {
+        'input_ids': encodings['input_ids'].to(model.device),
+        'attention_mask': encodings['attention_mask'].to(model.device)
+    }
+
+    # 예측 수행
+    with torch.no_grad():
+        outputs = model(**batch)
     
-    Args:
-        file_path (str): 텍스트 파일 경로
+    logits = outputs.logits
+    probs = logits.softmax(dim=-1).cpu()
+    labels = probs.argmax(dim=-1).tolist()
+
+    # 결과 포맷팅
+    results = []
+    for i, text in enumerate(texts):
+        label_id = labels[i]
+        results.append({
+            "text": text,
+            "label_id": label_id,
+            "label_name": LABEL_MAP.get(label_id, "알 수 없음"),
+            "probability": float(probs[i, label_id])
+        })
         
-    Returns:
-        List[str]: 텍스트 리스트
-    """
-    with open(file_path, 'r', encoding='utf-8') as f:
-        texts = [line.strip() for line in f if line.strip()]
-    return texts
-
-
-def save_results(results: List[Dict], output_path: str):
-    """
-    결과를 JSON 파일로 저장
-    
-    Args:
-        results (List[Dict]): 저장할 결과 리스트
-        output_path (str): 출력 파일 경로
-    """
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
-    print(f"결과가 {output_path}에 저장되었습니다.")
-
-
-def interactive_mode(classifier: ToxicCommentClassifier):
-    """
-    대화형 모드 실행
-    
-    Args:
-        classifier: 초기화된 분류기
-    """
-    print("\n=== 대화형 모드 ===")
-    print("텍스트를 입력하면 악성 여부를 분석합니다. (종료: 'quit' 또는 'exit')")
-    
-    while True:
-        try:
-            text = input("\n텍스트 입력: ").strip()
-            
-            if text.lower() in ['quit', 'exit', '종료']:
-                print("대화형 모드를 종료합니다.")
-                break
-            
-            if not text:
-                print("텍스트를 입력해주세요.")
-                continue
-            
-            # 예측 수행
-            result = classifier.predict(text)
-            
-            # 결과 출력
-            print(f"예측 결과: {result['prediction']}")
-            print(f"신뢰도: {result['confidence']:.3f}")
-            
-        except KeyboardInterrupt:
-            print("\n대화형 모드를 종료합니다.")
-            break
-        except Exception as e:
-            print(f"오류 발생: {e}")
+    return results
 
 
 def main():
-    """메인 함수"""
-    parser = argparse.ArgumentParser(
-        description="한국어 악성 댓글 분류 모델 추론",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-사용 예시:
-  python inference.py --text "분석할 텍스트"
-  python inference.py --file input.txt --output results.json
-  python inference.py --interactive
-        """
-    )
+    """
+    메인 실행 함수: 커맨드 라인 인자를 파싱하고 적절한 모드를 실행합니다.
+    """
+    parser = argparse.ArgumentParser(description="한국어 악성 댓글 분류 모델 추론 스크립트")
     
-    # 인자 설정
-    parser.add_argument(
-        "--text", 
-        type=str, 
-        help="분석할 단일 텍스트"
-    )
-    parser.add_argument(
-        "--file", 
-        type=str, 
-        help="분석할 텍스트가 포함된 파일 경로"
-    )
-    parser.add_argument(
-        "--interactive", 
-        action="store_true", 
-        help="대화형 모드 실행"
-    )
-    parser.add_argument(
-        "--model", 
-        type=str, 
-        default="bnb-4bit", 
-        help="모델 경로 (기본값: bnb-4bit)"
-    )
-    parser.add_argument(
-        "--output", 
-        type=str, 
-        help="결과 저장 파일 경로 (JSON 형식)"
-    )
-    parser.add_argument(
-        "--device", 
-        type=str, 
-        default="auto", 
-        help="사용할 디바이스 (기본값: auto)"
-    )
-    
+    # 세 가지 모드는 동시에 사용할 수 없도록 설정
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--text", type=str, help="분류할 단일 텍스트")
+    group.add_argument("--file", type=str, help="분류할 텍스트가 담긴 파일 경로 (한 줄에 한 텍스트)")
+    group.add_argument("--interactive", action="store_true", help="대화형 모드로 실행")
+
     args = parser.parse_args()
-    
-    # 모델 경로 확인
-    if not Path(args.model).exists():
-        print(f"오류: 모델 경로를 찾을 수 없습니다: {args.model}")
-        print("먼저 train.ipynb를 실행하여 모델을 학습하거나 quantization.ipynb를 실행하여 양자화된 모델을 생성하세요.")
-        return
-    
-    # 분류기 초기화
-    try:
-        classifier = ToxicCommentClassifier(args.model, args.device)
-    except Exception as e:
-        print(f"모델 로딩 오류: {e}")
-        return
-    
-    # 실행 모드 결정
-    if args.interactive:
-        interactive_mode(classifier)
-    elif args.text:
-        # 단일 텍스트 예측
-        result = classifier.predict(args.text)
-        print(f"\n입력 텍스트: {args.text}")
-        print(f"예측 결과: {result['prediction']}")
-        print(f"신뢰도: {result['confidence']:.3f}")
-        
-        if args.output:
-            save_results([result], args.output)
+
+    # 모델 로드 (한 번만 실행)
+    tokenizer, model = load_model()
+
+    if args.text:
+        # -- 단일 텍스트 모드 --
+        results = predict(args.text, tokenizer, model)
+        for res in results:
+            print(f"💬 입력: \"{res['text']}\"")
+            print(f"✅ 결과: {res['label_name']} (확률: {res['probability']:.2%})")
+
     elif args.file:
-        # 파일에서 텍스트 로드 및 예측
+        # -- 파일 모드 --
         try:
-            texts = load_texts_from_file(args.file)
-            print(f"파일에서 {len(texts)}개의 텍스트를 로드했습니다.")
+            with open(args.file, 'r', encoding='utf-8') as f:
+                lines = [line.strip() for line in f if line.strip()]
             
-            results = classifier.predict_batch(texts)
-            
-            # 결과 출력
-            for i, (text, result) in enumerate(zip(texts, results), 1):
-                print(f"\n{i}. 텍스트: {text}")
-                print(f"   예측: {result['prediction']} (신뢰도: {result['confidence']:.3f})")
-            
-            if args.output:
-                save_results(results, args.output)
-                
+            if not lines:
+                print("파일이 비어있거나 유효한 텍스트가 없습니다.")
+                return
+
+            print(f"총 {len(lines)}개의 텍스트를 파일에서 읽었습니다. 분석을 시작합니다...")
+            results = predict(lines, tokenizer, model)
+            for res in results:
+                print("-" * 30)
+                print(f"💬 입력: \"{res['text']}\"")
+                print(f"✅ 결과: {res['label_name']} (확률: {res['probability']:.2%})")
+
         except FileNotFoundError:
-            print(f"오류: 파일을 찾을 수 없습니다: {args.file}")
+            print(f"오류: 파일을 찾을 수 없습니다. -> {args.file}")
         except Exception as e:
-            print(f"파일 처리 오류: {e}")
-    else:
-        parser.print_help()
+            print(f"파일 처리 중 오류 발생: {e}")
+
+    elif args.interactive:
+        # -- 대화형 모드 --
+        print("\n대화형 모드를 시작합니다. 분석할 문장을 입력하세요. (종료: 'exit' 또는 'quit')")
+        while True:
+            try:
+                user_input = input(">>> ")
+                if user_input.lower() in ["exit", "quit"]:
+                    print("프로그램을 종료합니다.")
+                    break
+                if not user_input.strip():
+                    continue
+                
+                results = predict(user_input, tokenizer, model)
+                for res in results:
+                    print(f"✅ 결과: {res['label_name']} (확률: {res['probability']:.2%})\n")
+
+            except (KeyboardInterrupt, EOFError):
+                print("\n프로그램을 종료합니다.")
+                break
 
 
 if __name__ == "__main__":
-    main() 
+    main()
