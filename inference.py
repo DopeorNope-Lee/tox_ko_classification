@@ -10,14 +10,15 @@ PEFT(LoRA)로 튜닝된 모델의 추론을 지원합니다.
     python inference.py --interactive
 """
 import os
+# -- 환경 설정 --
+# 특정 GPU만 사용하도록 설정 (예: 0번 GPU)
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import argparse
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
 from peft import PeftModel
 
-# -- 환경 설정 --
-# 특정 GPU만 사용하도록 설정 (예: 0번 GPU)
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # -- 모델 설정 --
 CONFIG = {
