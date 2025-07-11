@@ -4,7 +4,7 @@
 > Detect toxic comments in Korean text with lightweight, production‑ready models.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.9%2B-blue" />
+  <img src="https://img.shields.io/badge/python-3.11.8%2B-blue" />
   <img src="https://img.shields.io/badge/torch-2.1%2B-ff69b4" />
   <img src="https://img.shields.io/badge/transformers-4.35%2B-yellow" />
   <img src="https://img.shields.io/badge/license-MIT-green" />
