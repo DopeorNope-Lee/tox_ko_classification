@@ -5,8 +5,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.11.8%2B-blue" />
-  <img src="https://img.shields.io/badge/torch-2.1%2B-ff69b4" />
-  <img src="https://img.shields.io/badge/transformers-4.35%2B-yellow" />
+  <img src="https://img.shields.io/badge/torch-2.6%2B-ff69b4" />
+  <img src="https://img.shields.io/badge/transformers-4.53.0%2B-yellow" />
   <img src="https://img.shields.io/badge/license-MIT-green" />
 </p>
 
