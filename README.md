@@ -12,7 +12,7 @@
 
 ---
 
-## ✨ 주요 특징
+## 주요 특징
 
 * **경량 모델** – KoBERT에 LoRA를 적용해 💾 메모리 사용을 **75 % 이상** 절감하고도 88 %+ 정확도 유지.
 * **4‑bit 양자화** – `bitsandbytes` 지원 GPU에서 실시간 추론이 가능하도록 모델을 4‑bit로 변환. 🪄
@@ -22,7 +22,7 @@
 
 ---
 
-## 📂 프로젝트 구조
+## 프로젝트 구조
 
 ```text
  tox_ko_classification/
@@ -43,7 +43,7 @@
 
 ---
 
-## ⚡️ 빠른 시작 (5분 컷)
+## 빠른 시작 (5분 컷)
 
 ```bash
 # 1️⃣ 저장소 클론 & 의존성 설치
@@ -56,75 +56,58 @@ $ pip install -r requirements.txt
 $ python train.py  # 약 30분–2시간
 
 # 3️⃣ 4‑bit 양자화 (선택)
-$ python quantization.py \
-    --base_model checkpoints/kobert-lora/checkpoint-700 \
-    --save_dir checkpoints/kobert-bnb-4bit
+$ python quantization.py 
 
 # 4️⃣ 단일 문장 추론
-$ python inference.py --model checkpoints/kobert-bnb-4bit \
-    --text "너 정말 못됐다!"
+$ python inference.py
 ```
 
 ---
 
 ## 🏋️‍♀️ 학습 옵션
 
-`train.py` 의 기본 설정은 스크립트 상단의 `CONFIG` 딕셔너리로 관리됩니다. CLI 인자를 통해 덮어쓸 수 있습니다.
+`train.py` 의 기본 설정은 스크립트 상단의 `CONFIG` 딕셔너리로 관리됩니다.
 예시:
 
 ```bash
 python train.py \
-  --epochs 10 \
-  --batch_size 64 \
-  --lr 3e-5 \
-  --csv_file custom.csv
 ```
 
 | 인자             | 기본값                       | 설명            |
 | -------------- | ------------------------- | ------------- |
-| `--model_name` | `skt/kobert-base-v1`      | 사전학습 모델 체크포인트 |
-| `--epochs`     | `5`                       | 학습 epoch 수    |
-| `--batch_size` | `32`                      | GPU 당 배치 크기   |
-| `--lr`         | `2e-5`                    | 학습률           |
-| `--output_dir` | `checkpoints/kobert-lora` | 체크포인트 저장 경로   |
+| `model_name` | `skt/kobert-base-v1`      | 사전학습 모델 체크포인트 |
+| `epochs`     | `5`                       | 학습 epoch 수    |
+| `batch_size` | `32`                      | GPU 당 배치 크기   |
+| `lr`         | `2e-5`                    | 학습률           |
+| `output_dir` | `checkpoints/kobert-lora` | 체크포인트 저장 경로   |
 
 학습이 완료되면 가장 낮은 `eval_loss` 를 기록한 모델이 `output_dir`에 저장됩니다.
 
 ---
 
-## 🔮 4‑bit 양자화
+## 4‑bit 양자화
 
 `quantization.py` 는 LoRA 가중치를 Merge 한 뒤 `bitsandbytes` 의 4‑bit 양자화 모델을 생성합니다.
 
 ```bash
 python quantization.py \
-  --lora_dir checkpoints/kobert-lora/checkpoint-700 \
-  --save_dir checkpoints/kobert-bnb-4bit
+
 ```
 
-생성된 디렉터리를 `inference.py --model` 인자로 넘기면 GPU 메모리 \~2 GB 수준에서도 추론이 가능합니다.
+생성된 디렉터리를 `inference.py 의 model` 인자로 넘기면 GPU 메모리 \~2 GB 수준에서도 추론이 가능합니다.
 
 ---
 
 ## 🔍 추론 사용법
 
 ```bash
-# 단일 텍스트
-python inference.py --model checkpoints/kobert-bnb-4bit \
-  --text "안녕? 이 멍청아!"  # → toxic (conf 0.97)
 
-# 텍스트 파일 배치 예측
-python inference.py --file examples/test_texts.txt --output batch.json
-
-# 대화형 모드
-python inference.py --interactive
+python inference.py 
 ```
-
-`inference.py` 는 Softmax 점수 기반 신뢰도(`confidence`)를 함께 반환합니다.
 
 ---
 
-## 📊 성능 요약 (dev set 500개)
+## 성능 요약 (dev set 500개)
 
 | 모델                    | 파라미터     | 양자화 | Accuracy   | F1    | VRAM(↘)    |
 | --------------------- | -------- | --- | ---------- | ----- | ---------- |
@@ -137,7 +120,7 @@ python inference.py --interactive
 
 ---
 
-## 🗂️ 데이터셋
+## 데이터셋
 
 * **규모** : 10 000 문장 (toxic 5 000 / none 5 000)
 * **출처** : Korean Hate Speech Dataset, Curse Detection Dataset, 자체 라벨링
@@ -147,7 +130,7 @@ python inference.py --interactive
 
 ---
 
-## 💻 요구 사항
+## 요구 사항
 
 의존성 일괄 설치:
 
@@ -157,7 +140,7 @@ pip install -r requirements.txt  # torch는 CUDA 환경에 맞춰 수동 설치 
 
 ---
 
-## 🙏 참고 문헌
+## 참고 문헌
 
 * **KoBERT** – SKTBrain.
 * **PEFT: Parameter‑Efficient Fine‑Tuning** – Hugging Face.
@@ -165,4 +148,4 @@ pip install -r requirements.txt  # torch는 CUDA 환경에 맞춰 수동 설치 
 
 ---
 
-<p align="center">Made with ❤️ by DopeorNope‑Lee & Contributors</p>
+<p align="center">Made with ❤️ by DopeorNope‑Lee </p>
