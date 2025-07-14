@@ -30,6 +30,7 @@
  ├── quantization.py           # 4‑bit 양자화 스크립트
  ├── inference.py              # 추론 스크립트 (단일·배치·대화형)
  ├── requirements.txt          # 의존 패키지 버전 명시
+ ├── setup.py                  # 패키지 및 환경 설정 설치 스크립트
  ├── utils/                    # 데이터/모델 유틸리티
  │   ├── data.py               # 데이터셋 로딩·토큰화
  │   ├── modeling.py           # LoRA 모델 빌드
@@ -43,14 +44,13 @@
 
 ---
 
-## 빠른 시작 (5분 컷)
+## 빠른 시작
 
 ```bash
 # 1️⃣ 저장소 클론 & 의존성 설치
 $ git clone https://github.com/DopeorNope-Lee/tox_ko_classification.git
 $ cd tox_ko_classification
-$ python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-$ pip install -r requirements.txt
+$ python setup.py
 
 # 2️⃣ 기본 설정으로 학습 (GPU 권장)
 $ python train.py  # 약 30분–2시간
