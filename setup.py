@@ -1,162 +1,83 @@
-#!/usr/bin/env python3
-"""
-Cross‑platform bootstrapper for **tox_ko_classification**
-========================================================
-Run **once** from the project root (Linux **or** Windows):
+#!/usr/bin/env python
+# setup.py  –  환경 부트스트랩 스크립트
+import os, sys, subprocess, shutil, platform, re, pathlib, venv
+from importlib.metadata import version as _v
 
-    # Linux / WSL2
-    $ python setup.py
+MIN_PY = (3, 11, 8)
+TORCH_VERSION = "2.6.0"
+CUDA_WHEELS = {  # 최소 대응
+    "12.2": "cu122",
+    "12.1": "cu121",
+    "12.0": "cu120",
+    "11.8": "cu118",
+    "11.7": "cu117",
+}
+def check_python():
+    if sys.version_info < MIN_PY:
+        sys.exit(f"❌ Python {MIN_PY[0]}.{MIN_PY[1]}.{MIN_PY[2]} 이상이 필요합니다.")
 
-    :: Windows PowerShell
-    PS> python setup.py
+def run(cmd, **kw):
+    print("▶", " ".join(cmd))
+    subprocess.check_call(cmd, **kw)
 
-The script will…
-1. Validate **Python ≥ 3.11.8**
-2. Detect an **NVIDIA GPU & CUDA** via *nvidia‑smi* (works on both OSes)
-3. Install the matching **CUDA‑enabled** PyTorch *2.6* wheel
-4. Install all remaining packages pinned in *requirements.txt* (torch excluded)
-5. Verify PyTorch can see at least one GPU
-
-Supported systems
------------------
-* **Windows 10/11** with CUDA 11.8 – 12.4 & NVIDIA driver ≥ 535
-* **Linux** (Ubuntu 20.04+, WSL2 OK) with the same CUDA/driver combo
-
-If no GPU or mismatched CUDA is found we fall back to CPU wheels so the rest of
-the repo can still run.
-"""
-
-from __future__ import annotations
-
-import os
-import platform
-import re
-import subprocess
-import sys
-from pathlib import Path
-from typing import Optional
-
-PROJECT_ROOT = Path(__file__).resolve().parent
-REQ_FILE = PROJECT_ROOT / "requirements.txt"
-TORCH_VERSION = "2.6.0"  # keep in sync with requirements
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
-def sh(cmd: str, check: bool = True) -> str:
-    """Execute *cmd* and return stdout. Raises on failure when *check*=True."""
-    print(f"\x1b[34m▶ {cmd}\x1b[0m")
-    result = subprocess.run(cmd, shell=True, text=True, capture_output=True)
-    if check and result.returncode != 0:
-        if result.stdout:
-            print(result.stdout)
-        if result.stderr:
-            print(result.stderr, file=sys.stderr)
-        raise RuntimeError(f"Command failed: {cmd}")
-    return result.stdout.strip()
-
-
-def require_python(min_tuple=(3, 11, 8)) -> None:
-    if sys.version_info < min_tuple:
-        ver = ".".join(map(str, min_tuple))
-        raise RuntimeError(f"Python {ver}+ required, found {platform.python_version()}")
-
-
-def detect_cuda() -> Optional[str]:
-    """Return CUDA version string like '12.1' or *None* if *nvidia‑smi* missing."""
+def detect_cuda():
     try:
-        output = sh("nvidia-smi", check=False)
+        out = subprocess.check_output(["nvidia-smi", "-q"], text=True, stderr=subprocess.DEVNULL)
+        m = re.search(r"CUDA Version\s+:\s+(\d+\.\d+)", out)
+        if m:
+            ver = m.group(1)
+            tag = CUDA_WHEELS.get(ver)
+            if tag:
+                return ver, tag
+            # fallback – 가장 근접한 버전 매핑
+            for v,pytag in CUDA_WHEELS.items():
+                if ver.startswith(v.split(".")[0]):
+                    return ver, pytag
+        print("⚠️  CUDA 버전 매핑을 찾지 못했습니다. CPU 전용으로 진행합니다.")
     except FileNotFoundError:
-        return None
+        print("ℹ️  NVIDIA GPU를 찾지 못했습니다.")
+    return None, None
 
-    match = re.search(r"CUDA Version:\s*(\d+\.\d+)", output)
-    return match.group(1) if match else None
-
-
-def pip_install_torch(cuda: Optional[str]) -> None:
-    """Install torch/vision/audio **2.6** with or without CUDA support."""
-    if cuda:
-        cuda_tag = f"cu{cuda.replace('.', '')}"
-        idx_url = f"https://download.pytorch.org/whl/{cuda_tag}"
-        wheel_desc = f"CUDA {cuda}"
-    else:
-        idx_url = "https://download.pytorch.org/whl/cpu"
-        wheel_desc = "CPU‑only"
-
-    print(f"Installing PyTorch {TORCH_VERSION} ({wheel_desc}) …")
-    sh(
-        "pip install --upgrade --extra-index-url {} torch=={} torchvision torchaudio".format(
-            idx_url, TORCH_VERSION
-        )
-    )
-
-
-def parse_reqs(path: Path) -> list[str]:
-    """Return requirements sans torch/vision/audio to avoid duplicates."""
-    skip_pkgs = ("torch", "torchvision", "torchaudio")
-    tokens: list[str] = []
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if any(line.startswith(s) for s in skip_pkgs):
-            continue
-        tokens.append(line)
-    return tokens
-
-
-def install_requirements() -> None:
-    pkgs = parse_reqs(REQ_FILE)
-    if pkgs:
-        print("Installing remaining dependencies …")
-        sh(f"pip install --upgrade {' '.join(pkgs)}")
-
-
-def verify_torch(cuda_expected: Optional[str]) -> None:
-    import importlib
-
-    torch = importlib.import_module("torch")
-    print("\nPyTorch diagnostic:")
-    print("  version       :", torch.__version__)
-    print("  cuda available:", torch.cuda.is_available())
-    if torch.cuda.is_available():
-        print("  gpu name      :", torch.cuda.get_device_name(0))
-        print("  cuda runtime  :", torch.version.cuda)
-        if cuda_expected and not torch.version.cuda.startswith(cuda_expected.split(".")[0]):
-            print("\x1b[33m⚠ Possible CUDA version mismatch.\x1b[0m")
-
-
-# ---------------------------------------------------------------------------
-# Bootstrap flow
-# ---------------------------------------------------------------------------
+def pip_install(pkgs, extra_index=None):
+    cmd = [sys.executable, "-m", "pip", "install", "--upgrade"] + pkgs
+    if extra_index:
+        cmd.extend(["--index-url", extra_index])
+    run(cmd)
 
 def main():
-    os.chdir(PROJECT_ROOT)
-    require_python()
+    check_python()
+    os_type = platform.system()
+    cuda_ver, torch_tag = detect_cuda()
 
-    # Upgrade pip quietly
-    sh("python -m pip install --upgrade pip", check=True)
-
-    cuda_ver = detect_cuda()
-    if cuda_ver:
-        print(f"Detected NVIDIA GPU – CUDA {cuda_ver}")
+    # 1) PyTorch
+    if torch_tag:
+        pip_install(
+            [f"torch=={TORCH_VERSION}+{torch_tag}", "torchvision", "torchaudio"],
+            extra_index="https://download.pytorch.org/whl/" + torch_tag
+        )
     else:
-        print("No compatible NVIDIA GPU detected; proceeding with CPU wheels.")
+        pip_install([f"torch=={TORCH_VERSION}+cpu"], extra_index="https://download.pytorch.org/whl/cpu")
 
-    pip_install_torch(cuda_ver)
-    install_requirements()
-    verify_torch(cuda_ver)
+    # 2) bitsandbytes
+    if torch_tag:
+        bb_pkg = "bitsandbytes" if os_type != "Windows" else "bitsandbytes-win"
+        pip_install([bb_pkg])
+    else:
+        print("ℹ️  GPU가 없으므로 bitsandbytes 설치를 건너뜁니다.")
 
-    print("\n✅  Setup complete. Try training with:\n   $ python train.py\n")
+    # 3) 그 외 requirements
+    reqs = pathlib.Path("requirements.txt").read_text().split()
+    skip = {"torch", "bitsandbytes", "bitsandbytes-win"}
+    filtered = [p for p in reqs if not any(p.startswith(s) for s in skip)]
+    if filtered:
+        pip_install(filtered)
 
+    # 4) 검증
+    import torch, textwrap
+    print("\n✅ 설치 완료!")
+    print(f"PyTorch {torch.__version__} | CUDA 지원: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print("GPU:", torch.cuda.get_device_name(0))
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\nInterrupted by user.")
-        sys.exit(130)
-    except Exception as e:
-        print("\x1b[31m✖ Setup failed:\x1b[0m", e)
-        sys.exit(1)
+    main()
