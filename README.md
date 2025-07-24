@@ -135,6 +135,8 @@ python inference.py
 의존성 일괄 설치:
 
 ```bash
+python setup.py
+# or
 pip install -r requirements.txt  # torch는 CUDA 환경에 맞춰 수동 설치 가능
 ```
 
