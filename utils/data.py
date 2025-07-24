@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from transformers import AutoTokenizer
 from utils.prompts import CLS_SYSTEM_PROMPT, CLS_USER_PROMPT  # prompts.py에서 프롬프트 임포트
 
-def build_dataset(csv_path, text_col="text", label_col="label", valid_size=0.1, seed=42):
+def build_dataset(csv_path, text_col="document", label_col="label", valid_size=0.1, seed=42):
     df = pd.read_csv(csv_path)
     df = df.dropna(subset=[label_col])
     df = df.reset_index(drop=True)
