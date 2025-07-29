@@ -89,6 +89,16 @@ python train.py \
 
 `quantization.py` 는 LoRA 가중치를 Merge 한 뒤 `bitsandbytes` 의 4‑bit 양자화 모델을 생성합니다.
 
+아래 코드를 실행하기 전에 아래 `quantization.py` 내부 config에 학습 후 저장돼있는 `lora_dir`을 넣어주세요!
+
+```
+CONFIG = {
+    "base_model": "skt/kobert-base-v1",
+    "lora_dir":   "checkpoints/kobert-lora/checkpoint-700", # 이 부분을 현재 있는 checkpoint로 수정해야 할 수 있습니다.
+    "save_dir":   "checkpoints/kobert-bnb-4bit",
+}
+```
+
 ```bash
 python quantization.py \
 
@@ -100,9 +110,24 @@ python quantization.py \
 
 ## 🔍 추론 사용법
 
+아래 코드를 실행하기 전에 아래 `inference.py` 내부 config에 학습 후 저장돼있는 `lora_dir`을 넣어주세요!
+
+```
+CONFIG = {
+    "base_model": "skt/kobert-base-v1",
+    "lora_dir": "checkpoints/kobert-lora/checkpoint-700", # 이 부분을 현재 있는 checkpoint로 수정해야 할 수 있습니다.
+}
+```
+
+text, file, interactive 모드 중 하나를 선택하여 추론을 할 수 있습니다.
+    
+- text: 분류할 단일 텍스트
+- file: 분류할 텍스트가 담긴 파일 경로 (한 줄에 한 텍스트)
+- interactive: 대화형 모드로 실행
+
 ```bash
 
-python inference.py 
+python inference.py --text "너무 재밌게 봤습니다!"
 ```
 
 ---
