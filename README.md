@@ -59,24 +59,24 @@
 ## 빠른 시작
 
 ```bash
-# 1️⃣ 저장소 클론 & 의존성 설치
+# 1. 저장소 클론 & 의존성 설치
 $ git clone <repository-url>
 $ cd tox_ko_classification
 $ python setup.py
 
-# 2️⃣ 기본 설정으로 학습 (GPU 권장)
+# 2. 기본 설정으로 학습 (GPU 권장)
 $ python train.py  # 약 30분–2시간
 
-# 3️⃣ 4‑bit 양자화 (선택)
+# 3. 4‑bit 양자화 (선택)
 $ python quantization.py 
 
-# 4️⃣ 단일 문장 추론
+# 4. 단일 문장 추론
 $ python inference.py
 ```
 
 ---
 
-## 🏋️‍♀️ 모델 학습
+## 모델 학습
 
 **학습 과정:**
 - 데이터 로딩 및 전처리
@@ -127,7 +127,7 @@ python quantization.py \
 
 ---
 
-## 🔍 추론 사용법
+## 추론 사용법
 
 아래 코드를 실행하기 전에 아래 `inference.py` 내부 config에 학습 후 저장돼있는 `lora_dir`을 넣어주세요!
 
@@ -220,5 +220,3 @@ python -c "import torch; print(torch.__version__)"
 * **bitsandbytes** – Tim Dettmers.
 
 ---
-
-<p align="center">Made with ❤️ by DopeorNope‑Lee </p>
