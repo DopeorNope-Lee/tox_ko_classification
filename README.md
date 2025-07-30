@@ -10,6 +10,18 @@
   <img src="https://img.shields.io/badge/license-MIT-green" />
 </p>
 
+## 사전 요구사항
+
+- **Python**: 3.11.8 이상
+- **GPU**: CUDA 지원 GPU (권장, 최소 4GB VRAM)
+- **RAM**: 최소 8GB
+- **저장공간**: 최소 2GB
+
+### 운영체제
+- Windows 10/11
+- macOS 10.15 이상
+- Ubuntu 18.04 이상
+
 ---
 
 ## 주요 특징
@@ -48,7 +60,7 @@
 
 ```bash
 # 1️⃣ 저장소 클론 & 의존성 설치
-$ git clone https://github.com/DopeorNope-Lee/tox_ko_classification.git
+$ git clone <repository-url>
 $ cd tox_ko_classification
 $ python setup.py
 
@@ -64,9 +76,16 @@ $ python inference.py
 
 ---
 
-## 🏋️‍♀️ 학습 옵션
+## 🏋️‍♀️ 모델 학습
+
+**학습 과정:**
+- 데이터 로딩 및 전처리
+- KoBERT 모델 설정 및 LoRA 적용
+- 학습 진행
+- 모델이 `output_dir`에 저장됨
 
 `train.py` 의 기본 설정은 스크립트 상단의 `CONFIG` 딕셔너리로 관리됩니다.
+
 예시:
 
 ```bash
@@ -126,8 +145,14 @@ text, file, interactive 모드 중 하나를 선택하여 추론을 할 수 있�
 - interactive: 대화형 모드로 실행
 
 ```bash
-
+# 단일 텍스트 예측
 python inference.py --text "너무 재밌게 봤습니다!"
+
+# 파일에서 여러 텍스트 예측
+python inference.py --file examples/test_texts.txt
+
+# 대화형 모드
+python inference.py --interactive
 ```
 
 ---
@@ -155,15 +180,36 @@ python inference.py --text "너무 재밌게 봤습니다!"
 
 ---
 
-## 요구 사항
+## 문제 해결
 
-의존성 일괄 설치:
+### 일반적인 오류
 
+#### 1. CUDA 메모리 부족
 ```bash
-python setup.py
-# or
-pip install -r requirements.txt  # torch는 CUDA 환경에 맞춰 수동 설치 가능
+# 배치 크기 줄이기
+python train.py --batch_size 32
 ```
+
+#### 2. 모델 로딩 실패
+```bash
+# 모델 경로 확인
+ls model-checkpoints/kobert/
+ls bnb-4bit/
+```
+
+#### 3. 의존성 설치 오류
+```bash
+# PyTorch 버전 확인
+python -c "import torch; print(torch.__version__)"
+```
+
+## 다음 단계
+
+빠른 시작을 완료했다면 다음 가이드들을 참조하세요:
+
+- **[학습 가이드](TRAINING_GUIDE.md)**: 상세한 학습 과정과 하이퍼파라미터 튜닝
+- **[양자화 가이드](QUANTIZATION_GUIDE.md)**: 모델 최적화 방법
+- **[사용법 예시](USAGE_EXAMPLES.md)**: 웹 서비스, 배치 처리 등 고급 활용법
 
 ---
 
