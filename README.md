@@ -120,14 +120,13 @@ CONFIG = {
 
 ```bash
 python quantization.py \
-
 ```
 
 생성된 디렉터리를 `inference.py 의 model` 인자로 넘기면 GPU 메모리 \~2 GB 수준에서도 추론이 가능합니다.
 
 ---
 
-## 추론 사용법
+## 추론
 
 아래 코드를 실행하기 전에 아래 `inference.py` 내부 config에 학습 후 저장돼있는 `lora_dir`을 넣어주세요!
 
