@@ -45,7 +45,7 @@ def quantize(cfg: dict = CONFIG):
     Path(cfg["save_dir"]).mkdir(parents=True, exist_ok=True)
     tok.save_pretrained(cfg["save_dir"])
     q_model.save_pretrained(cfg["save_dir"])
-    print(f"✅ 4-bit model saved to {cfg['save_dir']}")
+    print(f"4-bit model saved to {cfg['save_dir']}")
 
 if __name__ == "__main__":
     quantize()
