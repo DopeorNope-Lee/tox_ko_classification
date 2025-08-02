@@ -44,7 +44,7 @@ tox_ko_classification/
 먼저 Git 저장소를 클론하고, `setup.py` 스크립트로 기본 환경을 설정합니다.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/DopeorNope-Lee/tox_ko_classification
 cd tox_ko_classification
 conda create -n tox_ko python=3.11.8 -y
 conda activate tox_ko
