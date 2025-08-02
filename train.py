@@ -66,7 +66,7 @@ def train(cfg: dict = CONFIG):
     )
     trainer.train()
     trainer.save_model(cfg["output_dir"])
-    logging.info("✅ Finished training & saved to %s", cfg["output_dir"])
+    logging.info("Finished training & saved to %s", cfg["output_dir"])
 
 # 스크립트 직접 실행 시
 if __name__ == "__main__":
