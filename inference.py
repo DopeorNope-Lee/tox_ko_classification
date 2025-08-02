@@ -125,8 +125,8 @@ def main():
         # -- 단일 텍스트 모드 --
         results = predict(args.text, tokenizer, model)
         for res in results:
-            print(f"💬 입력: \"{res['text']}\"")
-            print(f"✅ 결과: {res['label_name']} (확률: {res['probability']:.2%})")
+            print(f"입력: \"{res['text']}\"")
+            print(f"결과: {res['label_name']} (확률: {res['probability']:.2%})")
 
     elif args.file:
         # -- 파일 모드 --
@@ -142,8 +142,8 @@ def main():
             results = predict(lines, tokenizer, model)
             for res in results:
                 print("-" * 30)
-                print(f"💬 입력: \"{res['text']}\"")
-                print(f"✅ 결과: {res['label_name']} (확률: {res['probability']:.2%})")
+                print(f"입력: \"{res['text']}\"")
+                print(f"결과: {res['label_name']} (확률: {res['probability']:.2%})")
 
         except FileNotFoundError:
             print(f"오류: 파일을 찾을 수 없습니다. -> {args.file}")
@@ -164,7 +164,7 @@ def main():
                 
                 results = predict(user_input, tokenizer, model)
                 for res in results:
-                    print(f"✅ 결과: {res['label_name']} (확률: {res['probability']:.2%})\n")
+                    print(f"결과: {res['label_name']} (확률: {res['probability']:.2%})\n")
 
             except (KeyboardInterrupt, EOFError):
                 print("\n프로그램을 종료합니다.")
