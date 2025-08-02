@@ -47,6 +47,7 @@ tox_ko_classification/
 git clone <repository-url>
 cd tox_ko_classification
 conda create -n tox_ko python=3.11.8 -y
+conda activate tox_ko
 python setup.py
 ```
 
