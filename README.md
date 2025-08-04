@@ -168,6 +168,6 @@ CONFIG = {
 -   **[사용법 예시](USAGE_EXAMPLES.md)**: 웹 서비스, 배치 처리 등 고급 활용법
 
 ### 참고 문헌
--   **KoBERT** – SKTBrain.
--   **PEFT: Parameter-Efficient Fine-Tuning** – Hugging Face.
--   **bitsandbytes** – Tim Dettmers.
+-   **[KoBERT](https://github.com/SKTBrain/KoBERT)** – SKTBrain.
+-   **[PEFT: Parameter-Efficient Fine-Tuning](https://github.com/huggingface/peft)** – Hugging Face.
+-   **[bitsandbytes](https://github.com/bitsandbytes-foundation/bitsandbytes)** – Tim Dettmers.
