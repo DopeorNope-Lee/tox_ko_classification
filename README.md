@@ -33,15 +33,16 @@ tox_ko_classification/
 ├── data/                   # 학습 데이터 (10 k 샘플)
 │   └── README.md         # 데이터셋 상세 설명
 ├── examples/               # 입력 예시
-├── results/                # 학습 결과 및 체크포인트
-└── docs/                   # 문서(빠른 시작 등) – 선택
+└── results/                # 학습 결과 및 체크포인트
 ```
 
 ## 시작하기
 
 ### 1. 환경 설정
 
-먼저 Git 저장소를 클론하고, `setup.py` 스크립트로 기본 환경을 설정합니다.
+먼저 Git 저장소를 클론하고, `pip install -r requirements.txt`와 `python setup.py` 스크립트로 기본 환경을 설정합니다.
+- `pip install -r requirements.txt`: 라이브러리 설치
+- `python setup.py`: 폴더 생성 및 환경 셋팅
 
 ```bash
 git clone https://github.com/DopeorNope-Lee/tox_ko_classification
@@ -61,7 +62,7 @@ python train.py
 ```
 학습이 완료되면 가장 낮은 `eval_loss`를 기록한 모델이 `checkpoints/kobert-lora` 디렉터리에 저장됩니다.
 
-### 3. 모델 최적화 (선택사항)
+### 3. 모델 최적화 (4-bit 양자화) (선택사항)
 
 훈련된 LoRA 어댑터를 원본 모델과 병합한 뒤, 4-bit 양자화를 진행하여 모델을 경량화합니다.
 
@@ -71,10 +72,17 @@ python quantization.py
 
 ### 4. 모델 추론
 
-최적화된 모델을 사용하여 단일 문장에 대한 악성 댓글 여부를 예측합니다.
+최적화된 모델을 사용하여 악성 댓글 여부를 예측합니다.
 
 ```bash
-python inference.py
+# 단일 텍스트 예측
+python inference.py --text "너무 재밌게 봤습니다!"
+
+# 파일에서 여러 텍스트 예측
+python inference.py --file examples/test_texts.txt
+
+# 대화형 모드
+python inference.py --interactive
 ```
 
 ## 주요 기능
@@ -124,9 +132,9 @@ python inference.py --interactive
 > 자세한 벤치마크는 [`results/`](results/) 폴더를 참조하세요.
 
 ## 데이터셋
--   **규모**: 10,000 문장 (악성 5,000 / 정상 5,000)
--   **출처**: Korean Hate Speech Dataset, Curse Detection Dataset, 및 자체 라벨링 데이터
--   **라이선스**: 연구 및 교육 목적으로만 사용 가능 (상업적 이용 시 원저작자와 협의 필요)
+-   **규모**: 10,000개의 영화 리뷰 문장 (긍정 5,000 / 부정 5,000)
+-   **출처**:  네이버 영화 리뷰 코퍼스(NSMC)에서 무작위 샘플링
+-   **라이선스**: 연구 및 교육 목적으로만 사용 가능 (상업적 이용 시 원본 NSMC 라이선스 확인 필요)
 -   **상세 정보**: 데이터 전처리 상세 과정은 [`data/README.md`](data/README.md)를 참고하세요.
 
 ## 커스터마이징
@@ -160,14 +168,8 @@ CONFIG = {
 -   **모델 로딩 실패**: `quantization.py` 또는 `inference.py` 실행 시, `CONFIG`에 설정된 모델 경로가 올바른지 확인하세요.
 -   **의존성 설치 오류**: `torch` 버전을 확인하고, `requirements.txt`에 명시된 버전과 호환되는지 확인하세요.
 
-## 추가 학습 자료
 
-빠른 시작을 완료했다면, 프로젝트 폴더 내의 다음 가이드들을 참조하여 더 깊이 학습할 수 있습니다.
--   **[학습 가이드](TRAINING_GUIDE.md)**: 상세한 학습 과정과 하이퍼파라미터 튜닝
--   **[양자화 가이드](QUANTIZATION_GUIDE.md)**: 모델 최적화 방법
--   **[사용법 예시](USAGE_EXAMPLES.md)**: 웹 서비스, 배치 처리 등 고급 활용법
-
-### 참고 문헌
+## 참고 문헌
 -   **[KoBERT](https://github.com/SKTBrain/KoBERT)** – SKTBrain.
 -   **[PEFT: Parameter-Efficient Fine-Tuning](https://github.com/huggingface/peft)** – Hugging Face.
 -   **[bitsandbytes](https://github.com/bitsandbytes-foundation/bitsandbytes)** – Tim Dettmers.
