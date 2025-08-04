@@ -38,7 +38,7 @@ def load_model(model_dir: str = CONFIG["lora_dir"]):
     """
     사전 학습된 KoBERT 모델과 LoRA 어댑터를 로드하고 병합합니다.
     """
-    print("모델과 토크나이저를 로드하는 중... 🐢")
+    print("모델과 토크나이저를 로드하는 중...")
     cfg = AutoConfig.from_pretrained(
         CONFIG["base_model"],
         num_labels=len(LABEL_MAP),
@@ -56,7 +56,7 @@ def load_model(model_dir: str = CONFIG["lora_dir"]):
     # LoRA 가중치를 불러와 기본 모델과 병합
     model = PeftModel.from_pretrained(base_model, model_dir).merge_and_unload()
     model.eval()
-    print("모델 로드 완료! ✨")
+    print("모델 로드 완료!")
     return tokenizer, model
 
 
