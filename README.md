@@ -48,7 +48,7 @@ git clone https://github.com/DopeorNope-Lee/tox_ko_classification
 cd tox_ko_classification
 conda create -n tox_ko python=3.11.8 -y
 conda activate tox_ko
-python setup.py
+pip install -r requirements.txt
 ```
 
 ### 2. 모델 훈련
