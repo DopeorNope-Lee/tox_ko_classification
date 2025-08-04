@@ -49,6 +49,7 @@ cd tox_ko_classification
 conda create -n tox_ko python=3.11.8 -y
 conda activate tox_ko
 pip install -r requirements.txt
+python setup.py
 ```
 
 ### 2. 모델 훈련
