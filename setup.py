@@ -20,7 +20,7 @@ def check_python_version():
     """Python 버전을 확인합니다."""
     print("Python 버전 확인 중...")
     version = sys.version_info
-    # Python 3.11.8 버전을 사용하신다고 하셨지만, 호환성을 위해 3.8 이상을 확인합니다.
+    
     if version.major < 3 or (version.major == 3 and version.minor < 8):
         print("오류: Python 3.8 이상이 필요합니다.")
         print(f"현재 버전: {version.major}.{version.minor}.{version.micro}")
