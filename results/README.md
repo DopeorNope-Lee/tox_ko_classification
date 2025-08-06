@@ -100,23 +100,16 @@ Response:
 ## 향후 개선 계획
 
 ### 단기 개선 (1-2개월)
-- [ ] 더 많은 한국어 악성 댓글 데이터 수집
-- [ ] 문맥 정보를 고려한 모델 구조 개선
-- [ ] 앙상블 기법 적용
+- 더 많은 한국어 악성 댓글 데이터 수집
+- 문맥 정보를 고려한 모델 구조 개선
+- 앙상블 기법 적용
 
 ### 중기 개선 (3-6개월)
-- [ ] 다국어 지원 확장
-- [ ] 실시간 학습 기능 추가
-- [ ] 웹 인터페이스 개발
+- 다국어 지원 확장
+- 실시간 학습 기능 추가
+- 웹 인터페이스 개발
 
 ### 장기 개선 (6개월 이상)
-- [ ] 멀티모달 분석 (이미지+텍스트)
-- [ ] 감정 분석과 연계
-- [ ] 상용 서비스 준비
-
-## 참고 자료
-
-- [KoBERT GitHub](https://github.com/SKTBrain/KoBERT)
-- [PEFT Documentation](https://huggingface.co/docs/peft)
-- [BitsAndBytes Documentation](https://github.com/TimDettmers/bitsandbytes)
-- [한국어 악성 댓글 데이터셋](https://github.com/ZIZUN/korean-malicious-comments-dataset) 
+- 멀티모달 분석 (이미지+텍스트)
+- 감정 분석과 연계
+- 상용 서비스 준비
