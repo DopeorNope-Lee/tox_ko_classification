@@ -1,6 +1,6 @@
 # python 3.11.8
 --extra-index-url https://download.pytorch.org/whl/cu126 # cuda12.6 toolkit으로 설치
-torch>=2.6.0
+torch==2.8.0
 transformers==4.53.0
 datasets==3.6.0
 pandas==2.3.0
