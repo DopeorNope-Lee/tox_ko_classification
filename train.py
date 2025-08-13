@@ -32,11 +32,12 @@ CONFIG = {
     "epochs":      5,
     "batch_size":  32,
     "lr":          2e-5,
+    "data_size": 100 # 학습에 활용할 데이터의 크기를 정할 수 있습니다.
 }
 # ──────────────────────────────
 
 def train(cfg: dict = CONFIG):
-    ds, tok = build_dataset(Path(cfg["data_dir"]) / cfg["csv_file"])
+    ds, tok = build_dataset(csv_path= Path(cfg["data_dir"]) / cfg["csv_file"], data_size=cfg["data_size"])
     model   = build_lora_model(cfg["model_name"], num_labels=2)
 
     tr_args = TrainingArguments(
